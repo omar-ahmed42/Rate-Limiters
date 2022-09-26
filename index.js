@@ -9,4 +9,3 @@ app.use('/api/v1/', authenticationRouter);
 app.listen(process.env.PORT, () => {
     console.log(`Server is now listening on port ${process.env.PORT}`);
 });
-

@@ -7,14 +7,15 @@ const dummyData = [
 const router = require('express').Router();
 const {tokenBucketLimiter} = require('../middlewares/rate-limiters.js');
 const redis = require("redis")
+const {StatusCodes} = require("http-status-codes");
 
 const client = redis.createClient();
 client.on('error', (err) => console.log('Redis client error', err));
 client.connect().then(() => console.log("Connected to Redis"));
 
-router.post('/login', tokenBucketLimiter(client, 2, 150, "loginAttempt") , async (req, res, next) => {
+const authenticate = async (req, res, next) => {
     if (!req.body.email || !req.body.password){
-        res.status(400).json({success:false, msg:"email or password is missing"});
+        res.status().json({success:false, msg:"email or password is missing"});
     }
 
     const credentials = dummyData.find(element => element.email === req.body.email);
@@ -23,6 +24,19 @@ router.post('/login', tokenBucketLimiter(client, 2, 150, "loginAttempt") , async
     }
 
     res.status(200).json({success: true});
-});
+}
+
+const loginLimiter = async (req, res, next) => {
+    try {
+        await tokenBucketLimiter(client, 2, 150, "loginAttempt:" + req.socket.remoteAddress)
+        next();
+    } catch (e){
+        if (e.statusCode === StatusCodes.TOO_MANY_REQUESTS){
+            res.status(e.statusCode).json({success: false, message: e.message});
+        }
+    }
+}
+
+router.post('/login', loginLimiter, authenticate);
 
 module.exports = router;

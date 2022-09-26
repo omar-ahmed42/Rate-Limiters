@@ -1,9 +1,8 @@
-const tokenBucketLimiter = (redis, bucketCapacity, refillInterval, key) => {
-    return async (req, res, next) => {
+const {TooManyRequestsError} = require("../errors");
+const tokenBucketLimiter = async (redis, bucketCapacity, refillInterval, key) => {
         let currentTimestamp = new Date().getTime();
         const currentTimestampToString = currentTimestamp.toString();
         let intervalDifference = currentTimestamp - (1000 * refillInterval);
-        console.log("key: " + key);
         const [removeByRange, range] = await redis
             .multi()
             .zRemRangeByScore(key, 0, intervalDifference)
@@ -17,13 +16,10 @@ const tokenBucketLimiter = (redis, bucketCapacity, refillInterval, key) => {
             .exec();
 
         if (range.length >= bucketCapacity) {
-            return res.status(429).json({success: false, msg: "Too many requests"});
+            throw new TooManyRequestsError('Too many requests');
         }
-        next();
-    }
 }
 
 module.exports = {
     tokenBucketLimiter
 }
-
