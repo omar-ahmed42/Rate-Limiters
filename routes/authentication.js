@@ -26,9 +26,13 @@ const authenticate = async (req, res, next) => {
     res.status(200).json({success: true});
 }
 
+const parseIp = (req) =>
+    req.headers['x-forwarded-for']?.split(',').shift()
+    || req.socket?.remoteAddress
+
 const loginLimiter = async (req, res, next) => {
     try {
-        await tokenBucketLimiter(client, 2, 150, "loginAttempt:" + req.socket.remoteAddress)
+        await tokenBucketLimiter(client, 2, 150, "loginAttempt:" + parseIp(req))
         next();
     } catch (e){
         if (e.statusCode === StatusCodes.TOO_MANY_REQUESTS){
